@@ -3,6 +3,7 @@
 .RData
 .Ruserdata
 inst/libs/
+inst/testing/
 man/
 NAMESPACE
 tableaux.Rproj

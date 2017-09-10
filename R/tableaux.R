@@ -6,6 +6,10 @@
   .C("dualTableauR", tableau=tableau, l=length(tableau), result=list(0L))$result[[1L]]
 }
 
+.isPartition <- function(partition){
+  .C("isPartitionR", partition=partition, l=length(partition), result=0L)$result
+}
+
 .countStandardYoungTableaux <- function(shape){
   .C("countStandardYoungTableauxR", partition=shape, l=length(shape),
      result=0L)$result
@@ -14,6 +18,10 @@
 .standardYoungTableaux <- function(shape){
   .C("standardYoungTableauxR", partition=shape, l=length(shape),
      result=list(0L))$result[[1L]]
+}
+
+.hookLengths <- function(shape){
+  .C("hookLengthsR", partition=shape, l=length(shape), result=list(0L))$result[[1L]]
 }
 
 #' ASCII diagram of a tableau
@@ -64,7 +72,9 @@ dualTableau <- function(tableau){
 #' countStandardYoungTableaux(c(5,3,1))
 countStandardYoungTableaux <- function(shape){
   shape <- purrr::map_int(shape, as.integer)
-  # check shape is partition ...
+  if(.isPartition(shape)==0L){
+    warning("`shape` is not a partition")
+  }
   .countStandardYoungTableaux(shape)
 }
 
@@ -82,6 +92,28 @@ countStandardYoungTableaux <- function(shape){
 #' standardYoungTableaux(shape)
 standardYoungTableaux <- function(shape){
   shape <- purrr::map_int(shape, as.integer)
-  # TODO: check shape is partition ...
+  if(.isPartition(shape)==0L){
+    warning("`shape` is not a partition")
+  }
   .standardYoungTableaux(shape)
+}
+
+#' Hook lengths
+#'
+#' Hook lengths of a partition.
+#'
+#' @param shape a partition
+#'
+#' @return The tableau of hook lengths.
+#' @export
+#' @importFrom purrr map_int
+#'
+#' @examples
+#' hookLengths(c(5,2,1))
+hookLengths <- function(shape){
+  shape <- purrr::map_int(shape, as.integer)
+  if(.isPartition(shape)==0L){
+    warning("`shape` is not a partition")
+  }
+  .hookLengths(shape)
 }
