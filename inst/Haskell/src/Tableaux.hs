@@ -1,16 +1,16 @@
+{-# LANGUAGE DataKinds                #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-# LANGUAGE DataKinds #-}
 module Tableaux where
-import Foreign
-import Foreign.C
-import Foreign.R (SEXP)
-import qualified Foreign.R.Type as R
-import qualified Data.Vector.SEXP as VS
-import Math.Combinat.Tableaux
-import Math.Combinat.Partitions.Integer
-import Language.R.Literal (mkProtectedSEXPVector)
-import Data.Singletons (sing)
-import Data.Bool (bool)
+import           Data.Bool                        (bool)
+import           Data.Singletons                  (sing)
+import qualified Data.Vector.SEXP                 as VS
+import           Foreign
+import           Foreign.C
+import           Foreign.R                        (SEXP)
+import qualified Foreign.R.Type                   as R
+import           Language.R.Literal               (mkProtectedSEXPVectorIO)
+import           Math.Combinat.Partitions.Integer
+import           Math.Combinat.Tableaux
 
 importTableau :: Ptr (SEXP s R.Int) -> Ptr CInt -> IO (Tableau Int32)
 importTableau tableau l = do
@@ -30,8 +30,9 @@ foreign export ccall dualTableauR :: Ptr (SEXP s R.Int) -> Ptr CInt ->
 dualTableauR :: Ptr (SEXP s R.Int) -> Ptr CInt -> Ptr (SEXP s R.Vector) -> IO ()
 dualTableauR tableau l result = do
   tableau <- importTableau tableau l
-  poke result $ mkProtectedSEXPVector sing $
+  dtableau <- mkProtectedSEXPVectorIO sing $
     (map (VS.toSEXP . VS.fromList) (dualTableau tableau) :: [SEXP s R.Int])
+  poke result dtableau
 
 foreign export ccall isPartitionR :: Ptr CInt -> Ptr CInt -> Ptr CInt -> IO()
 isPartitionR :: Ptr CInt -> Ptr CInt -> Ptr CInt -> IO()
@@ -58,10 +59,10 @@ standardYoungTableauxR partition l result = do
   partition <- peekArray (fromIntegral l :: Int) partition
   let tableaux = standardYoungTableaux (mkPartition $ map fromIntegral partition)
   let tableaux32 = map (map (map fromIntegral)) tableaux :: [[[Int32]]]
-  let tableauxAsSEXP = map (\x -> (mkProtectedSEXPVector sing $
+  tableauxAsSEXP <- mapM (\x -> (mkProtectedSEXPVectorIO sing $
                             (map (VS.toSEXP . VS.fromList) x :: [SEXP s R.Int]))
-                              :: SEXP s R.Vector) tableaux32
-  poke result $ mkProtectedSEXPVector sing tableauxAsSEXP
+                              :: IO (SEXP s R.Vector)) tableaux32
+  (>>=) (mkProtectedSEXPVectorIO sing tableauxAsSEXP) (poke result)
 
 foreign export ccall hookLengthsR :: Ptr CInt -> Ptr CInt ->
                                                   Ptr (SEXP s R.Vector) -> IO ()
@@ -72,5 +73,6 @@ hookLengthsR partition l result = do
   let lengths = map (map fromIntegral) $
                   hookLengths (mkPartition $ map fromIntegral partition)
                     :: [[Int32]]
-  poke result $ mkProtectedSEXPVector sing $
-    (map (VS.toSEXP . VS.fromList) lengths :: [SEXP s R.Int])
+  (>>=) (mkProtectedSEXPVectorIO sing $
+          (map (VS.toSEXP . VS.fromList) lengths :: [SEXP s R.Int]))
+            (poke result)
